@@ -1,6 +1,6 @@
 
-
 import os.path as osp
+from utils.augmentation import Compose, Scale, Resize, RandomRotation, RandomMirror, Normalize_Tensor
 
 def make_data_path(rootpath):
     original_image_template = osp.join(rootpath, "JPEGImages", "%s.jpg")
@@ -34,7 +34,25 @@ def make_data_path(rootpath):
 
     return train_image_list, train_annotation_list, val_image_list, val_annotation_list
 
+class DataTransform:
+    def __init__(self, input_size, color_mean, color_std):
+        self.data_transform = {
+            "train" : Compose([
+                Scale(scale=[0.5, 1.5]), # image can scale into only 50% or even 150%
+                RandomRotation(angle=[-10, 10]),
+                RandomMirror(),
+                Resize(input_size),
+                Normalize_Tensor(color_mean, color_std)
+            ]),
+            "val": Compose([
+                Resize(input_size),
+                Normalize_Tensor(color_mean, color_std)
+            ])
+        }
 
+    def __call__(self, phase, img, anno_class_img):
+        return self.data_transform[phase](img, anno_class_img)
+  
 if __name__ == "__main__":
     rootpath = './datasets/VOC2012/'
     train_image_list, train_annotation_list, val_image_list, val_annotation_list = make_data_path(rootpath=rootpath)
