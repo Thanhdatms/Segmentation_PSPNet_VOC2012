@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 class Conv2DBatchNormReLU(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, dilation, bias):
         super(Conv2DBatchNormReLU, self).__init__()
@@ -128,6 +128,48 @@ class ResidualBlockPSP(nn.Sequential):
         self.add_module("block1", BottleNeckPSP(in_channels, mid_channels, out_channels, stride, dilation))
         for i in range(n_blocks - 1):
             self.add_module(f"block{i+2}", BottleNeckIdentifyPSP(out_channels, mid_channels, out_channels, stride=1, dilation=dilation))
+
+
+class PyramidPooling(nn.Module):
+    def __init__(self, in_channels, pool_sizes = [6,3,2,1], height=60, width=60):
+        super(PyramidPooling, self).__init__()
+        self.height = height
+        self.width = width
+
+        out_channels = int(in_channels/len(pool_sizes))
+
+        # pooling 1
+        self.avg_pool_1 = nn.AdaptiveAvgPool2d(output_size=pool_sizes[0])
+        self.conv2d_batchnorm_relu_1 = Conv2DBatchNormReLU(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, padding=0, dilation=1, bias=False)
+
+        # pooling 2
+        self.avg_pool_2 = nn.AdaptiveAvgPool2d(output_size=pool_sizes[1])
+        self.conv2d_batchnorm_relu_2 = Conv2DBatchNormReLU(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, padding=0, dilation=1, bias=False)
+
+        # pooling 3
+        self.avg_pool_3 = nn.AdaptiveAvgPool2d(output_size=pool_sizes[2])
+        self.conv2d_batchnorm_relu_3 = Conv2DBatchNormReLU(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, padding=0, dilation=1, bias=False)
+
+        # pooling 4
+        self.avg_pool_4 = nn.AdaptiveAvgPool2d(output_size=pool_sizes[3])
+        self.conv2d_batchnorm_relu_4 = Conv2DBatchNormReLU(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, padding=0, dilation=1, bias=False)
+
+    def forward(self, x):
+        out_1 = self.conv2d_batchnorm_relu_1(self.avg_pool_1(x))
+        out_1 = F.interpolate(out_1, size=(self.height, self.width), mode='bilinear', align_corners=True)
+
+        out_2 = self.conv2d_batchnorm_relu_1(self.avg_pool_1(x))
+        out_2 = F.interpolate(out_2, size=(self.height, self.width), mode='bilinear', align_corners=True)
+
+        out_3 = self.conv2d_batchnorm_relu_1(self.avg_pool_1(x))
+        out_3 = F.interpolate(out_3, size=(self.height, self.width), mode='bilinear', align_corners=True)
+
+        out_4 = self.conv2d_batchnorm_relu_1(self.avg_pool_1(x))
+        out_4 = F.interpolate(out_4, size=(self.height, self.width), mode='bilinear', align_corners=True)
+
+        outputs = torch.cat([x, out_1, out_2, out_3, out_4], dim=1)
+
+        return outputs
 
 if __name__ == "__main__":
     model = ResidualBlockPSP(3, in_channels=64, mid_channels=64, out_channels=256, stride=1, dilation=1)
