@@ -170,6 +170,47 @@ class PyramidPooling(nn.Module):
         outputs = torch.cat([x, out_1, out_2, out_3, out_4], dim=1)
 
         return outputs
+    
+class DecodePSPFeature(nn.Module):
+    def __init__(self, height, width, n_classes):
+        super(DecodePSPFeature, self).__init__()
+
+        self.height = height
+        self.width = width
+        self.n_classes = n_classes
+
+        self.conv2d_batchnorm_relu = Conv2DBatchNormReLU(in_channels=4096, out_channels=512, kernel_size=3, padding=1, stride=1, dilation=1, bias=False)
+        self.drop_out = nn.Dropout(p=0.1)
+        self.classification = nn.Conv2d(in_channels=512, out_channels=21, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        x = self.conv2d_batchnorm_relu(x)
+        x = self.drop_out(x)
+        x = self.classification(x)
+        outputs = F.interpolate(x, size=(self.height, self.width), mode='bilinear', align_corners=True)
+
+        return outputs
+    
+class AuxilirayPSPLayers(nn.Module):
+    def __init__(self, height, width, n_classes):
+        self.height = height
+        self.width = width
+        self.n_classes = n_classes
+
+        self.conv2d_batchnorm_relu = Conv2DBatchNormReLU(in_channels=1024, out_channels=256, kernel_size=3, stride=1, padding=1, dilation=1, bias=False)
+        self.classification = nn.Conv2d(in_channels=256, out_channels=21, kernel_size=1, stride=1, padding=0)
+        self.dropout = nn.Dropout(p=0.1)
+
+    def forward(self, x):
+        x = self.conv2d_batchnorm_relu(x)
+        x = self.dropout(x)
+        x = self.classification(x)
+        outputs = F.interpolate(x, size=(self.height, self.width), mode='bilinear', align_corners=True)
+
+        return outputs
+
+        
+
 
 if __name__ == "__main__":
     model = ResidualBlockPSP(3, in_channels=64, mid_channels=64, out_channels=256, stride=1, dilation=1)
