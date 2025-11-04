@@ -66,7 +66,7 @@ class RandomRotation(object):
 
     def __call__(self, img, anno_class_img):
         rotate_angle = np.random.uniform(self.angle[0], self.angle[1])
-        
+
         img = img.rotate(rotate_angle, Image.BILINEAR)
         anno_class_img = anno_class_img.rotate(rotate_angle, Image.NEAREST)
 
@@ -110,9 +110,3 @@ class Normalize_Tensor(object):
         anno_class_img = torch.from_numpy(anno_class_img).long()
 
         return img, anno_class_img
-
-
-
-
-
-        
